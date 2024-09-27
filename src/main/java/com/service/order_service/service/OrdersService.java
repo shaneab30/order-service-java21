@@ -171,7 +171,6 @@ public class OrdersService {
 
         // Get Existing ProductOrders
         List<ProductOrders> existingProductOrders = existingOrders.getProductOrders();
-
         List<ProductOrders> updatedProductOrders = new ArrayList<>();
         List<ProductOrders> newProductOrders = new ArrayList<>();
 
@@ -183,7 +182,7 @@ public class OrdersService {
 
             // Check if the product order already exists
             Optional<ProductOrders> existingProductOrdersOptional = existingProductOrders.stream()
-                    .filter(p -> p.getId() == productOrder.getId()).findFirst();
+                    .filter(p -> p.getProductId().equals(productOrder.getProductId())).findFirst();
 
             if (existingProductOrdersOptional.isPresent()) {
                 ProductOrders existingProductOrder = existingProductOrdersOptional.get();
@@ -192,7 +191,7 @@ public class OrdersService {
                 existingProductOrder.setPrice(productOrder.getPrice());
 
                 updatedProductOrders.add(existingProductOrder);
-                
+
             } else {
                 ProductOrders newProductOrder = new ProductOrders();
                 newProductOrder.setId(productOrder.getId());
@@ -201,34 +200,17 @@ public class OrdersService {
                 newProductOrder.setPrice(productOrder.getPrice());
                 newProductOrder.setOrders(existingOrders);
 
+                newProductOrders.add(newProductOrder); // Add to new list
                 updatedProductOrders.add(newProductOrder);
             }
         }
 
-        existingProductOrders.removeIf(p -> !updatedProductOrders.contains(p));
+        // Remove orders not in the updated list
+        existingProductOrders.removeIf(p -> updatedProductOrders.stream()
+                .noneMatch(updated -> updated.getProductId().equals(p.getProductId())));
 
         // Add the new product orders to the existing collection
         existingProductOrders.addAll(newProductOrders);
-
-        // List<ProductOrders> updatedProductOrders = new ArrayList<>();
-
-        // for (ProductOrders productOrder : orders.getProductOrders()) {
-        // Product productResponse = getProductDetails(productOrder.getProductId());
-        // if (productResponse == null) {
-        // throw new IllegalArgumentException("Product ID not found");
-        // }
-
-        // ProductOrders existingProductOrders =
-        // productOrdersRepository.findById(productOrder.getId())
-        // .orElseThrow(() -> new IllegalArgumentException("Product Order ID not
-        // found"));
-        // existingProductOrders.setProductId(productOrder.getProductId());
-        // existingProductOrders.setQuantity(productOrder.getQuantity());
-        // existingProductOrders.setPrice(productOrder.getPrice());
-        // existingProductOrders.setOrders(existingOrders);
-        // updatedProductOrders.add(existingProductOrders);
-        // }
-        // existingOrders.setProductOrders(updatedProductOrders);
         orderRepository.save(existingOrders);
     }
 
@@ -299,13 +281,14 @@ public class OrdersService {
                 productOrders);
     }
 
-    private ProductOrdersResponse convertToProductOrdersResponse(ProductOrders productOrders) {
-        return new ProductOrdersResponse(
-                productOrders.getId(),
-                getProductDetails(productOrders.getProductId()),
-                productOrders.getQuantity(),
-                productOrders.getPrice());
-    }
+    // private ProductOrdersResponse convertToProductOrdersResponse(ProductOrders
+    // productOrders) {
+    // return new ProductOrdersResponse(
+    // productOrders.getId(),
+    // getProductDetails(productOrders.getProductId()),
+    // productOrders.getQuantity(),
+    // productOrders.getPrice());
+    // }
 
     public Customer getCustomerDetails(Long customerId) {
         RestTemplate restTemplate = new RestTemplate();
