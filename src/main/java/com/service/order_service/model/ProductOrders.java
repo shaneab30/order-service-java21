@@ -25,9 +25,8 @@ public class ProductOrders {
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
     @JoinColumn(name = "order_id", nullable = false, referencedColumnName = "id")
-    private Orders orders; // This is the relation to Orders
-
-    private Long productId; // Assuming this will link to a Product
+    private Orders orders;
+    private Long productId;
     private Integer quantity;
     private BigDecimal price;
 }

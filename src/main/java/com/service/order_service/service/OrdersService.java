@@ -1,6 +1,7 @@
 package com.service.order_service.service;
 
 import java.util.List;
+import java.util.ArrayList;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,17 +16,21 @@ import com.service.order_service.dto.ProductOrdersResponse;
 import com.service.order_service.model.Orders;
 import com.service.order_service.model.ProductOrders;
 import com.service.order_service.repository.OrdersRepository;
+import com.service.order_service.repository.ProductOrdersRepository;
 
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
-import java.util.stream.Collectors;
+// import java.util.stream.Collectors;
 
 @Service
 public class OrdersService {
 
     @Autowired
     private OrdersRepository orderRepository;
+
+    @Autowired
+    private ProductOrdersRepository productOrdersRepository;
 
     @Value("${customer.api.url}")
     private String customerApiUrl;
@@ -35,10 +40,14 @@ public class OrdersService {
 
     public List<OrdersResponse> getAllOrders() {
         List<Orders> orders = orderRepository.findAll();
-        return orders.stream().map(o -> {
 
-            Customer customerResponse = getCustomerDetails(o.getCustomerId());
-            System.out.println("Retrieved customer: " + customerResponse);
+        List<OrdersResponse> ordersResponse = new ArrayList<>();
+
+        for (Orders order : orders) {
+            Customer customerResponse = getCustomerDetails(order.getCustomerId());
+            if (customerResponse == null) {
+                throw new IllegalArgumentException("Customer ID not found");
+            }
             Customer customer = new Customer();
             customer.setId(customerResponse.getId());
             customer.setFirstname(customerResponse.getFirstname());
@@ -48,49 +57,63 @@ public class OrdersService {
             customer.setTelephone(customerResponse.getTelephone());
             customer.setBirthday(customerResponse.getBirthday());
 
-            List<ProductOrdersResponse> productOrders = o.getProductOrders().stream().map(productOrder -> {
-                Product productResponse = getProductDetails(productOrder.getProductId());
-                return new ProductOrdersResponse(productOrder.getId(), productResponse, productOrder.getQuantity(),
-                        productOrder.getPrice());
-            }).collect(Collectors.toList());
+            List<ProductOrdersResponse> productOrdersResponse = new ArrayList<>();
 
-            return convertToOrderResponse(o, customer, productOrders);
-        }).toList();
-        // use .collect(Collectors.toList()) for mutable list
-        // return
-        // orders.stream().map(this::convertToOrderResponse).collect(Collectors.toList());
+            for (ProductOrders productOrders : order.getProductOrders()) {
+                Product productResponse = getProductDetails(productOrders.getProductId());
+
+                if (productResponse == null) {
+                    throw new IllegalArgumentException("Product ID not found");
+                }
+                ProductOrdersResponse newProductOrdersResponse = new ProductOrdersResponse();
+                newProductOrdersResponse.setId(productOrders.getId());
+                newProductOrdersResponse.setProduct(productResponse);
+                newProductOrdersResponse.setQuantity(productOrders.getQuantity());
+                newProductOrdersResponse.setPrice(productOrders.getPrice());
+                productOrdersResponse.add(newProductOrdersResponse);
+            }
+            ordersResponse.add(convertToOrderResponse(order, customer, productOrdersResponse));
+        }
+        return ordersResponse;
     }
 
     public Optional<OrdersResponse> getOrderById(Long id) {
         Optional<Orders> order = orderRepository.findById(id);
-        return order.map(o -> {
-            
-            Customer customerResponse = getCustomerDetails(o.getCustomerId());
-            System.out.println("Retrieved customer: " + customerResponse);
 
-            Customer customer = new Customer();
-            customer.setId(customerResponse.getId());
-            customer.setFirstname(customerResponse.getFirstname());
-            customer.setLastname(customerResponse.getLastname());
-            customer.setEmail(customerResponse.getEmail());
-            customer.setAddress(customerResponse.getAddress());
-            customer.setTelephone(customerResponse.getTelephone());
-            customer.setBirthday(customerResponse.getBirthday());
+        Customer customerResponse = getCustomerDetails(order.get().getCustomerId());
+        if (customerResponse == null) {
+            throw new IllegalArgumentException("Customer ID not found");
+        }
+        Customer customer = new Customer();
+        customer.setId(customerResponse.getId());
+        customer.setFirstname(customerResponse.getFirstname());
+        customer.setLastname(customerResponse.getLastname());
+        customer.setEmail(customerResponse.getEmail());
+        customer.setAddress(customerResponse.getAddress());
+        customer.setTelephone(customerResponse.getTelephone());
+        customer.setBirthday(customerResponse.getBirthday());
 
-            List<ProductOrdersResponse> productOrders = o.getProductOrders().stream().map(productOrder -> {
-                Product productResponse = getProductDetails(productOrder.getProductId());
-                return new ProductOrdersResponse(productOrder.getId(), productResponse, productOrder.getQuantity(),
-                        productOrder.getPrice());
-            }).collect(Collectors.toList());
+        List<ProductOrdersResponse> productOrdersResponse = new ArrayList<>();
 
-            return convertToOrderResponse(o, customer, productOrders);
-        });
+        for (ProductOrders productOrders : order.get().getProductOrders()) {
+            Product productResponse = getProductDetails(productOrders.getProductId());
+            if (productResponse == null) {
+                throw new IllegalArgumentException("Product ID not found");
+            }
+            ProductOrdersResponse newProductOrdersResponse = new ProductOrdersResponse();
+            newProductOrdersResponse.setId(productOrders.getId());
+            newProductOrdersResponse.setProduct(productResponse);
+            newProductOrdersResponse.setQuantity(productOrders.getQuantity());
+            newProductOrdersResponse.setPrice(productOrders.getPrice());
+            productOrdersResponse.add(newProductOrdersResponse);
+        }
+        return Optional.of(convertToOrderResponse(order.get(), customer, productOrdersResponse));
     }
 
-    public OrdersResponse createOrders(Orders orders) {
+    public void createOrders(Orders orders) {
         Customer customerResponse = getCustomerDetails(orders.getCustomerId());
         if (customerResponse == null) {
-            throw new IllegalArgumentException("ID cannot be null");
+            throw new IllegalArgumentException("Customer ID not found");
         }
         Customer customer = new Customer();
         customer.setId(customerResponse.getId());
@@ -102,27 +125,116 @@ public class OrdersService {
         customer.setBirthday(customerResponse.getBirthday());
         System.out.println("Retrieved customer: " + customerResponse);
 
-        List<ProductOrders> productOrders = orders.getProductOrders().stream().map(productOrder -> {
+        List<ProductOrders> productOrders = new ArrayList<>();
+
+        for (ProductOrders productOrder : orders.getProductOrders()) {
             Product productResponse = getProductDetails(productOrder.getProductId());
             if (productResponse == null) {
-                throw new IllegalArgumentException("ID cannot be null");
+                throw new IllegalArgumentException("Product ID not found");
             }
             ProductOrders newProductOrder = new ProductOrders();
+            newProductOrder.setId(productOrder.getId());
             newProductOrder.setProductId(productOrder.getProductId());
             newProductOrder.setQuantity(productOrder.getQuantity());
             newProductOrder.setPrice(productOrder.getPrice());
             newProductOrder.setOrders(orders);
-
-            return newProductOrder;
-        }).toList();
-
+            productOrders.add(newProductOrder);
+        }
         orders.setProductOrders(productOrders);
         orders.setShippingAddress(customerResponse.getAddress());
+        orderRepository.save(orders);
+    }
 
-        List<ProductOrdersResponse> productOrdersResponse = productOrders.stream()
-                .map(this::convertToProductOrdersResponse).toList();
+    public void updateOrders(Orders orders) {
+        Orders existingOrders = orderRepository.findById(orders.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Order ID not found"));
 
-        return convertToOrderResponse(saveOrder(orders), customer, productOrdersResponse);
+        existingOrders.setCustomerId(orders.getCustomerId());
+        existingOrders.setOrderDate(orders.getOrderDate());
+        existingOrders.setStatus(orders.getStatus());
+        existingOrders.setTotalPrice(orders.getTotalPrice());
+
+        Customer customerResponse = getCustomerDetails(orders.getCustomerId());
+        if (customerResponse == null) {
+            throw new IllegalArgumentException("Customer ID not found");
+        }
+        Customer updatedCustomer = new Customer();
+        updatedCustomer.setId(customerResponse.getId());
+        updatedCustomer.setFirstname(customerResponse.getFirstname());
+        updatedCustomer.setLastname(customerResponse.getLastname());
+        updatedCustomer.setEmail(customerResponse.getEmail());
+        updatedCustomer.setAddress(customerResponse.getAddress());
+        updatedCustomer.setTelephone(customerResponse.getTelephone());
+        updatedCustomer.setBirthday(customerResponse.getBirthday());
+
+        existingOrders.setShippingAddress(customerResponse.getAddress());
+
+        // Get Existing ProductOrders
+        List<ProductOrders> existingProductOrders = existingOrders.getProductOrders();
+
+        List<ProductOrders> updatedProductOrders = new ArrayList<>();
+        List<ProductOrders> newProductOrders = new ArrayList<>();
+
+        for (ProductOrders productOrder : orders.getProductOrders()) {
+            Product productResponse = getProductDetails(productOrder.getProductId());
+            if (productResponse == null) {
+                throw new IllegalArgumentException("Product ID not found");
+            }
+
+            // Check if the product order already exists
+            Optional<ProductOrders> existingProductOrdersOptional = existingProductOrders.stream()
+                    .filter(p -> p.getId() == productOrder.getId()).findFirst();
+
+            if (existingProductOrdersOptional.isPresent()) {
+                ProductOrders existingProductOrder = existingProductOrdersOptional.get();
+                existingProductOrder.setProductId(productOrder.getProductId());
+                existingProductOrder.setQuantity(productOrder.getQuantity());
+                existingProductOrder.setPrice(productOrder.getPrice());
+
+                updatedProductOrders.add(existingProductOrder);
+                
+            } else {
+                ProductOrders newProductOrder = new ProductOrders();
+                newProductOrder.setId(productOrder.getId());
+                newProductOrder.setProductId(productOrder.getProductId());
+                newProductOrder.setQuantity(productOrder.getQuantity());
+                newProductOrder.setPrice(productOrder.getPrice());
+                newProductOrder.setOrders(existingOrders);
+
+                updatedProductOrders.add(newProductOrder);
+            }
+        }
+
+        existingProductOrders.removeIf(p -> !updatedProductOrders.contains(p));
+
+        // Add the new product orders to the existing collection
+        existingProductOrders.addAll(newProductOrders);
+
+        // List<ProductOrders> updatedProductOrders = new ArrayList<>();
+
+        // for (ProductOrders productOrder : orders.getProductOrders()) {
+        // Product productResponse = getProductDetails(productOrder.getProductId());
+        // if (productResponse == null) {
+        // throw new IllegalArgumentException("Product ID not found");
+        // }
+
+        // ProductOrders existingProductOrders =
+        // productOrdersRepository.findById(productOrder.getId())
+        // .orElseThrow(() -> new IllegalArgumentException("Product Order ID not
+        // found"));
+        // existingProductOrders.setProductId(productOrder.getProductId());
+        // existingProductOrders.setQuantity(productOrder.getQuantity());
+        // existingProductOrders.setPrice(productOrder.getPrice());
+        // existingProductOrders.setOrders(existingOrders);
+        // updatedProductOrders.add(existingProductOrders);
+        // }
+        // existingOrders.setProductOrders(updatedProductOrders);
+        orderRepository.save(existingOrders);
+    }
+
+    public void updateOrdersV2(Orders orders) {
+        orderRepository.delete(orders);
+        orderRepository.save(orders);
     }
 
     public Orders saveOrder(Orders orders) {
@@ -130,15 +242,22 @@ public class OrdersService {
     }
 
     public void deleteOrder(Long id) {
-        orderRepository.deleteById(id);
+        Orders orders = orderRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Order ID not found"));
+
+        orderRepository.delete(orders);
     }
 
     public List<OrdersResponse> getAllOrderStatus(String status) {
         List<Orders> orders = orderRepository.findAllByStatus(status);
-        return orders.stream().map(o -> {
 
-            Customer customerResponse = getCustomerDetails(o.getCustomerId());
-            System.out.println("Retrieved customer: " + customerResponse);
+        List<OrdersResponse> ordersResponse = new ArrayList<>();
+
+        for (Orders order : orders) {
+            Customer customerResponse = getCustomerDetails(order.getCustomerId());
+            if (customerResponse == null) {
+                throw new IllegalArgumentException("Customer ID not found");
+            }
             Customer customer = new Customer();
             customer.setId(customerResponse.getId());
             customer.setFirstname(customerResponse.getFirstname());
@@ -148,15 +267,23 @@ public class OrdersService {
             customer.setTelephone(customerResponse.getTelephone());
             customer.setBirthday(customerResponse.getBirthday());
 
-            List<ProductOrdersResponse> productOrders = o.getProductOrders().stream().map(productOrder -> {
-                Product productResponse = getProductDetails(productOrder.getProductId());
-                return new ProductOrdersResponse(productOrder.getId(), productResponse, productOrder.getQuantity(),
-                        productOrder.getPrice());
-            }).collect(Collectors.toList());
+            List<ProductOrdersResponse> productOrdersResponse = new ArrayList<>();
 
-            return convertToOrderResponse(o, customer, productOrders);
-        }).toList();
-        // use .collect(Collectors.toList()) for mutable list
+            for (ProductOrders productOrders : order.getProductOrders()) {
+                if (productOrders == null) {
+                    throw new IllegalArgumentException("Product ID not found");
+                }
+                Product productResponse = getProductDetails(productOrders.getProductId());
+                ProductOrdersResponse newProductOrdersResponse = new ProductOrdersResponse();
+                newProductOrdersResponse.setId(productOrders.getId());
+                newProductOrdersResponse.setProduct(productResponse);
+                newProductOrdersResponse.setQuantity(productOrders.getQuantity());
+                newProductOrdersResponse.setPrice(productOrders.getPrice());
+                productOrdersResponse.add(newProductOrdersResponse);
+            }
+            ordersResponse.add(convertToOrderResponse(order, customer, productOrdersResponse));
+        }
+        return ordersResponse;
     }
 
     // Functions

@@ -2,6 +2,7 @@ package com.service.order_service.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.CascadeType;
@@ -41,5 +42,5 @@ public class Orders {
     private String shippingAddress;
 
     @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ProductOrders> productOrders;
+    private List<ProductOrders> productOrders = new ArrayList<>();
 }
