@@ -16,7 +16,6 @@ import com.service.order_service.dto.ProductOrdersResponse;
 import com.service.order_service.model.Orders;
 import com.service.order_service.model.ProductOrders;
 import com.service.order_service.repository.OrdersRepository;
-import com.service.order_service.repository.ProductOrdersRepository;
 
 import org.springframework.web.client.RestTemplate;
 
@@ -28,9 +27,6 @@ public class OrdersService {
 
     @Autowired
     private OrdersRepository orderRepository;
-
-    @Autowired
-    private ProductOrdersRepository productOrdersRepository;
 
     @Value("${customer.api.url}")
     private String customerApiUrl;
@@ -280,15 +276,6 @@ public class OrdersService {
                 order.getShippingAddress(),
                 productOrders);
     }
-
-    // private ProductOrdersResponse convertToProductOrdersResponse(ProductOrders
-    // productOrders) {
-    // return new ProductOrdersResponse(
-    // productOrders.getId(),
-    // getProductDetails(productOrders.getProductId()),
-    // productOrders.getQuantity(),
-    // productOrders.getPrice());
-    // }
 
     public Customer getCustomerDetails(Long customerId) {
         RestTemplate restTemplate = new RestTemplate();
