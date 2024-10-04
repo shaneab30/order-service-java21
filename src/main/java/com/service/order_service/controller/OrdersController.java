@@ -31,15 +31,22 @@ public class OrdersController {
         return orderService.getAllOrders();
     }
 
-    @GetMapping("/{id}")
-    public Optional<OrdersResponse> getOrderById(@PathVariable Long id) {
-        return orderService.getOrderById(id);
-    }
-
-    // @PostMapping
-    // public Orders saveOrder(@RequestBody Orders orders){
-    // return orderService.saveOrder(orders);
+    // @GetMapping("/{id}")
+    // public Optional<OrdersResponse> getOrderById(@PathVariable Long id) {
+    //     return orderService.getOrderById(id);
     // }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<String> getOrderById(@PathVariable Long id) {
+        try {
+            orderService.getOrderById(id);
+            return ResponseEntity.ok("Order retrieved successfully");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Something went wrong");
+        }
+    }
 
     @PostMapping
     public ResponseEntity<String> createOrders(@RequestBody Orders orders) {

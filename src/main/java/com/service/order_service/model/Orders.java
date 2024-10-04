@@ -25,22 +25,16 @@ public class Orders {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @Column(name = "customer_id", nullable = false)
     private Long customerId;
-
     @Column(name = "order_date", nullable = false)
     private LocalDateTime orderDate;
-
     @Column(name = "status", nullable = false)
     private String status;
-
     @Column(name = "total_price", nullable = false)
     private BigDecimal totalPrice;
-
     @Column(name = "shipping_address", nullable = false)
     private String shippingAddress;
-
     @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductOrders> productOrders = new ArrayList<>();
 }

@@ -76,6 +76,10 @@ public class OrdersService {
     public Optional<OrdersResponse> getOrderById(Long id) {
         Optional<Orders> order = orderRepository.findById(id);
 
+        if (!order.isPresent()) {
+            throw new IllegalArgumentException("Order ID not found");
+        }
+
         Customer customerResponse = getCustomerDetails(order.get().getCustomerId());
         if (customerResponse == null) {
             throw new IllegalArgumentException("Customer ID not found");
@@ -208,11 +212,6 @@ public class OrdersService {
         // Add the new product orders to the existing collection
         existingProductOrders.addAll(newProductOrders);
         orderRepository.save(existingOrders);
-    }
-
-    public void updateOrdersV2(Orders orders) {
-        orderRepository.delete(orders);
-        orderRepository.save(orders);
     }
 
     public Orders saveOrder(Orders orders) {
